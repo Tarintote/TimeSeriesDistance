@@ -284,14 +284,14 @@ cdef double distance_nogil_c(
             #
             #printf('%i, %i, %i\n',i0*length + j - skipp,i0*length + j + 1 - skipp,i1*length + j - skip)
             #printf('%f, %f, %f\n',lcss[i0*length + j - skipp],lcss[i0*length + j + 1 - skipp],lcss[i1*length + j - skip])
-            printf('i=%i, j=%i, d=%f, skip=%i, skipp=%i\n',i,j,d,skip,skipp)
-            printf("[ ")
-            for iii in range(length):
-                printf("%f ", lcss[iii])
-            printf("\n")
-            for iii in range(length,length*2):
-                printf("%f ", lcss[iii])
-            printf("]\n")
+            #printf('i=%i, j=%i, d=%f, skip=%i, skipp=%i\n',i,j,d,skip,skipp)
+            #printf("[ ")
+            #for iii in range(length):
+            #    printf("%f ", lcss[iii])
+            #printf("\n")
+            #for iii in range(length,length*2):
+            #    printf("%f ", lcss[iii])
+            #printf("]\n")
             #
 
             if lcss[i1*length + j + 1 - skip] <= max_dist:
