@@ -231,17 +231,8 @@ cdef double distance_nogil_c(
         skip = maxj
         i0 = 1 - i0
         i1 = 1 - i1
-        #my change
-        #from#
-        #for j in range(length):
-        #    edr[length * i1 + j] = inf
-        #to#
         for j in range(length):
-            if j == 0:
-                edr[length * i1 + j] = 0
-            else:
-                edr[length * i1 + j] = inf
-        ####
+            edr[length * i1 + j] = inf
         if length == c + 1:
             skip = 0
         minj = c - r
