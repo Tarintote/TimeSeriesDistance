@@ -34,6 +34,8 @@ clean:
 	python3 setup.py clean
 	rm -f LCSSdistance/lcss_c.c
 	rm -f LCSSdistance/lcss_c.*.so
+	rm -f EDRdistance/edr_c.c
+	rm -f EDRdistance/edr_c.*.so
 
 .PHONY: build
 build:
@@ -43,6 +45,8 @@ build:
 analyze_build:
 	cd LCSSdistance;cython lcss_c.pyx -a
 	open LCSSdistance/lcss_c.html
+	cd EDRdistance;cython edr_c.pyx -a
+	open EDRdistance/edr_c.html
 
 .PHONY: prepare_dist
 prepare_dist:
