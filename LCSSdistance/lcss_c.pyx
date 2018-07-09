@@ -129,7 +129,7 @@ def distance(np.ndarray[DTYPE_t, ndim=1] s1, np.ndarray[DTYPE_t, ndim=1] s2,
         d = min(np.min(vc), psi_shortest)
         d = math.sqrt(d)
     # print(lcss)
-    return d
+    return d/window
 
 
 def distance_nogil(double[:] s1, double[:] s2,
@@ -328,7 +328,7 @@ cdef double distance_nogil_c(
         #result = sqrt(psi_shortest)
         result = psi_shortest
     free(lcss)
-    return result
+    return result/window
 
 
 @cython.boundscheck(False) # turn off bounds-checking for entire function
