@@ -191,7 +191,7 @@ def distance(s1, s2, epsilon=None, window=None, max_dist=None,
         vc = edr[i1, ic - psi:ic + 1]
         d = min(np.min(vc), psi_shortest)
         d = math.sqrt(d)
-    return d
+    return d/window
 
 
 def distance_fast(s1, s2, epsilon=None, window=None, max_dist=None,
