@@ -109,6 +109,11 @@ if cythonize is not None and numpy is not None:
             "LCSSdistance.lcss_c", ["LCSSdistance/lcss_c.pyx"],
             include_dirs=np_include_dirs,
             extra_compile_args=extra_compile_args,
+            extra_link_args=extra_link_args),
+        Extension(
+            "EDRdistance.edr_c", ["EDRdistance/edr_c.pyx"],
+            include_dirs=np_include_dirs,
+            extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args)])
 elif numpy is None:
     print("Numpy was not found, preparing a pure Python version.")
@@ -145,18 +150,18 @@ else:
         long_description = f.read()
 
 setup(
-    name='LCSSdistance',
+    name='TimeSeriesDistance',
     version=version,
     description='Distance measures for time series',
     long_description=long_description,
     author='Wannes Meert',
     author_email='wannes.meert@cs.kuleuven.be',
     url='https://dtai.cs.kuleuven.be',
-    project_urls={
-        'LCSSdistance documentation': 'http://LCSSdistance.readthedocs.io/en/latest/',
-        'LCSSdistance source': 'https://github.com/wannesm/LCSSdistance'
-    },
-    packages=["LCSSdistance"],
+    # project_urls={
+    #    'LCSSdistance documentation': 'http://LCSSdistance.readthedocs.io/en/latest/',
+    #    'LCSSdistance source': 'https://github.com/wannesm/LCSSdistance'
+    #},
+    packages=["LCSSDistance", "EDRDistance"],
     install_requires=install_requires,
     tests_require=tests_require,
     extras_require={
@@ -179,6 +184,6 @@ setup(
         # 'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3'
     ),
-    keywords='lcss',
+    keywords=['lcss', 'edr'],
     ext_modules=ext_modules
 )

@@ -1,9 +1,9 @@
 # -*- coding: UTF-8 -*-
 """
-dtaidistance.lcss_c
+dtaidistance.edr_c
 ~~~~~~~~~~~~~~~~~~
 
-Dynamic Time Warping (lcss), C implementation.
+Dynamic Time Warping (edr), C implementation.
 
 :author: Wannes Meert
 :copyright: Copyright 2017-2018 KU Leuven, DTAI Research Group.
@@ -47,7 +47,7 @@ def distance(np.ndarray[DTYPE_t, ndim=1] s1, np.ndarray[DTYPE_t, ndim=1] s2,
     :param max_length_diff: Max length difference between the two sequences
     :param penalty: Cost incurrend when performing compression or expansion
 
-    Returns: lcss distance
+    Returns: edr distance
     """
     assert s1.dtype == DTYPE and s2.dtype == DTYPE
     cdef int r = len(s1)
@@ -66,12 +66,12 @@ def distance(np.ndarray[DTYPE_t, ndim=1] s1, np.ndarray[DTYPE_t, ndim=1] s2,
         max_dist *= max_dist
     penalty *= penalty
     cdef int length = min(c + 1, abs(r - c) + 2 * (window - 1) + 1 + 1 + 1)
-    cdef np.ndarray[DTYPE_t, ndim=2] lcss = np.full((2, length), inf)
+    cdef np.ndarray[DTYPE_t, ndim=2] edr = np.full((2, length), inf)
     cdef np.ndarray[DTYPE_t, ndim=1] cand_values
-    # lcss[0, 0] = 0
+    # edr[0, 0] = 0
     cdef int i
     for i in range(psi + 1):
-        lcss[0, i] = 0
+        edr[0, i] = 0
     cdef double last_under_max_dist = 0
     cdef double prev_last_under_max_dist = inf
     cdef int skip = 0
@@ -89,55 +89,57 @@ def distance(np.ndarray[DTYPE_t, ndim=1] s1, np.ndarray[DTYPE_t, ndim=1] s2,
         skip = max(0, i - window + 1)
         i0 = 1 - i0
         i1 = 1 - i1
-        # lcss[i1 ,:] = inf
-        lcss[i1, 0], lcss[i1, 1:] = 0.0, np.inf
+        # edr[i1 ,:] = inf
+        edr[i1, 0], edr[i1, 1:] = 0.0, np.inf
         j_start = max(0, i - max(0, r - c) - window + 1)
         j_end = min(c, i + max(0, c - r) + window)
-        if lcss.shape[1] == c+ 1:
+        if edr.shape[1] == c+ 1:
             skip = 0
         if psi != 0 and j_start == 0 and i < psi:
-            lcss[i1, 0] = 0
+            edr[i1, 0] = 0
         for j in range(j_start, j_end):
             # d = (s1[i] - s2[j])**2
-            d = fabs(s1[i] - s2[j])
+            d = abs(s1[i] - s2[j])
             if d > max_step:
                 continue
-            cand_values = np.array([lcss[i0, j - skipp], lcss[i0, j + 1 - skipp] + penalty, lcss[i1, j - skip] + penalty])
             if d <= epsilon:
-                lcss[i1, j + 1 - skip] = 0.0 + np.nanmax(cand_values[cand_values != np.inf])
+                cand_values = np.array([edr[i0, j - skipp], edr[i0, j + 1 - skipp] + 1, edr[i1, j - skip] + 1])
             else:
-                lcss[i1, j + 1 - skip] = 1.0 + np.nanmin(cand_values[cand_values != np.inf])
+                cand_values = np.array([edr[i0, j - skipp] + 1, edr[i0, j + 1 - skipp] + 1, edr[i1, j - skip] + 1])
 
-            print(cand_values)
-            if lcss[i1, j + 1 - skip] <= max_dist:
+            edr[i1, j + 1 - skip] = np.nanmin(cand_values[cand_values != np.inf])
+
+            #print(cand_values)
+            if edr[i1, j + 1 - skip] <= max_dist:
                 last_under_max_dist = j
             else:
-                lcss[i1, j + 1 - skip] = inf
+                edr[i1, j + 1 - skip] = inf
                 if prev_last_under_max_dist + 1 - skipp < j + 1 - skip:
                     break
         if last_under_max_dist == -1:
             # print('early stop')
-            # print(lcss)
+            # print(edr)
             return inf
         if psi != 0 and j_end == len(s2) and len(s1) - 1 - i <= psi:
-            psi_shortest = min(psi_shortest, lcss[i1, length - 1])
+            psi_shortest = min(psi_shortest, edr[i1, length - 1])
     if psi == 0:
-        d = math.sqrt(lcss[i1, min(c, c + window - 1) - skip])
+        #d = math.sqrt(edr[i1, min(c, c + window - 1) - skip])
+        d = edr[i1, min(c, c + window - 1) - skip]
     else:
         ic = min(c, c + window - 1) - skip
-        vc = lcss[i1, ic - psi:ic + 1]
+        vc = edr[i1, ic - psi:ic + 1]
         d = min(np.min(vc), psi_shortest)
-        d = math.sqrt(d)
-    # print(lcss)
+        #d = math.sqrt(d)
+    # print(edr)
     return d
 
 
 def distance_nogil(double[:] s1, double[:] s2,
              double epsilon=0, int window=0, double max_dist=0,
              double max_step=0, int max_length_diff=0, double penalty=0, int psi=0):
-    """lcss distance.
+    """edr distance.
 
-    See distance(). This calls a pure c lcss computation that avoids the GIL.
+    See distance(). This calls a pure c edr computation that avoids the GIL.
     :param s1: First sequence (buffer of doubles)
     :param s2: Second sequence (buffer of doubles)
     """
@@ -166,9 +168,9 @@ cdef double distance_nogil_c(
              int c, # len_s2
              double epsilon=0.0, int window=0, double max_dist=0,
              double max_step=0, int max_length_diff=0, double penalty=0, int psi=0) nogil:
-    """lcss distance.
+    """edr distance.
 
-    See distance(). This is a pure c lcss computation that avoid the GIL.
+    See distance(). This is a pure c edr computation that avoid the GIL.
     """
     if max_length_diff != 0 and abs(r-c) > max_length_diff:
         return inf
@@ -185,18 +187,20 @@ cdef double distance_nogil_c(
     penalty = pow(penalty, 2)
     cdef int length = min(c+1,abs(r-c) + 2*(window-1) + 1 + 1 + 1)
     #printf("length (c) = %i\n", length)
-    #cdef array.array lcss_tpl = array.array('d', [])
-    #cdef array.array lcss
-    #lcss = array.clone(lcss_tpl, length*2, zero=False)
-    cdef double * lcss
-    lcss = <double *> malloc(sizeof(double) * length * 2)
+    #cdef array.array edr_tpl = array.array('d', [])
+    #cdef array.array edr
+    #edr = array.clone(edr_tpl, length*2, zero=False)
+    cdef double * edr
+    edr = <double *> malloc(sizeof(double) * length * 2)
+    cdef double * cand_values
+    cand_values = <double *> malloc(sizeof(double) * 3)
     cdef int i
     cdef int j
     for j in range(length*2):
-        lcss[j] = inf
-    # lcss[0] = 0
+        edr[j] = inf
+    # edr[0] = 0
     for i in range(psi + 1):
-        lcss[i] = 0
+        edr[i] = 0
     cdef double last_under_max_dist = 0
     cdef double prev_last_under_max_dist = inf
     cdef int skip = 0
@@ -205,7 +209,6 @@ cdef double distance_nogil_c(
     cdef int i1 = 0
     cdef int minj
     cdef int maxj
-    cdef double maxv
     cdef double minv
     cdef DTYPE_t d
     cdef double tempv
@@ -231,13 +234,13 @@ cdef double distance_nogil_c(
         #my change
         #from#
         #for j in range(length):
-        #    lcss[length * i1 + j] = inf
+        #    edr[length * i1 + j] = inf
         #to#
         for j in range(length):
             if j == 0:
-                lcss[length * i1 + j] = 0
+                edr[length * i1 + j] = 0
             else:
-                lcss[length * i1 + j] = inf
+                edr[length * i1 + j] = inf
         ####
         if length == c + 1:
             skip = 0
@@ -248,86 +251,77 @@ cdef double distance_nogil_c(
         if minj > c:
             minj = c
         if psi != 0 and maxj == 0 and i < psi:
-            lcss[i1*length + 0] = 0
+            edr[i1*length + 0] = 0
         for j in range(maxj, minj):
             #printf('s1[i] = s1[%i] = %f , s2[j] = s2[%i] = %f\n', i, s1[i], j, s2[j])
             #d = pow(s1[i] - s2[j], 2)
             d = fabs(s1[i] - s2[j])
             if d > max_step:
                 continue
-            minv = lcss[i0*length + j - skipp]
-            maxv = minv
-            tempv = lcss[i0*length + j + 1 - skipp] + penalty
-            #my change
-            #from#
-            #if tempv < minv:
-            #        minv = tempv
-            #    tempv = lcss[i1*length + j - skip] + penalty
-            #    if tempv < min_maxv:
-            #        minv = tempv
-            #   #printf('d = %f, minv = %f\n', d, minv)
-            #    lcss[i1 * length + j + 1 - skip] = 1 + minv
-            #to#
-            if d <= epsilon:
+            minv = edr[i0*length + j - skipp]
+            tempv = edr[i0*length + j + 1 - skipp] + 1
+
+            if d > epsilon:
+                minv = minv + 1
                 if tempv < minv and tempv != inf:
                     minv = tempv
-                tempv = lcss[i1*length + j - skip] + penalty
+                tempv = edr[i1*length + j - skip] + 1
                 if tempv < minv and tempv != inf:
                     minv = tempv
-                lcss[i1 * length + j + 1 - skip] = 1 + minv
+                edr[i1 * length + j + 1 - skip] = minv
             else:
-                if tempv > maxv and tempv != inf:
-                    maxv = tempv
-                tempv = lcss[i1*length + j - skip] + penalty
-                if tempv > maxv or (tempv != inf and maxv == inf):
-                    maxv = tempv
-                lcss[i1 * length + j + 1 - skip] = 0 + maxv
+                if tempv < minv and tempv != inf:
+                    minv = tempv
+                tempv = edr[i1*length + j - skip] + 1
+                if tempv < minv or (tempv != inf and minv == inf):
+                    minv = tempv
+                edr[i1 * length + j + 1 - skip] = minv
             ####
             #
             #printf('%i, %i, %i\n',i0*length + j - skipp,i0*length + j + 1 - skipp,i1*length + j - skip)
-            #printf('%f, %f, %f\n',lcss[i0*length + j - skipp],lcss[i0*length + j + 1 - skipp],lcss[i1*length + j - skip])
+            #printf('%f, %f, %f\n',edr[i0*length + j - skipp],edr[i0*length + j + 1 - skipp],edr[i1*length + j - skip])
             #printf('i=%i, j=%i, d=%f, skip=%i, skipp=%i\n',i,j,d,skip,skipp)
             #printf("[ ")
             #for iii in range(length):
-            #    printf("%f ", lcss[iii])
+            #    printf("%f ", edr[iii])
             #printf("\n")
             #for iii in range(length,length*2):
-            #    printf("%f ", lcss[iii])
+            #    printf("%f ", edr[iii])
             #printf("]\n")
             #
 
-            if lcss[i1*length + j + 1 - skip] <= max_dist:
+            if edr[i1*length + j + 1 - skip] <= max_dist:
                 last_under_max_dist = j
             else:
-                lcss[i1*length + j + 1 - skip] = inf
+                edr[i1*length + j + 1 - skip] = inf
                 if prev_last_under_max_dist + 1 - skipp < j + 1 - skip:
                     break
         if last_under_max_dist == -1:
             # print('early stop')
-            # print(lcss)
+            # print(edr)
             return inf
 
         if psi != 0 and minj == c and r - 1 - i <= psi:
-            if lcss[i1*length + length - 1] < psi_shortest:
-                psi_shortest = lcss[i1*length + length - 1]
+            if edr[i1*length + length - 1] < psi_shortest:
+                psi_shortest = edr[i1*length + length - 1]
 
         # printf("[ ")
         # for iii in range(i1*length,i1*length + length):
-        #    printf("%f ", lcss[iii])
+        #    printf("%f ", edr[iii])
         # printf("]\n")
 
-    # print(lcss)
+    # print(edr)
     if window - 1 < 0:
         c = c + window - 1
-    #cdef double result = sqrt(lcss[length * i1 + c - skip])
-    cdef double result = lcss[length * i1 + c - skip]
+    #cdef double result = sqrt(edr[length * i1 + c - skip])
+    cdef double result = edr[length * i1 + c - skip]
     if psi != 0:
         for i in range(c - skip - psi, c - skip + 1):  # iterate over vci
-            if lcss[i1*length + i] < psi_shortest:
-                psi_shortest = lcss[i1*length + i]
+            if edr[i1*length + i] < psi_shortest:
+                psi_shortest = edr[i1*length + i]
         #result = sqrt(psi_shortest)
         result = psi_shortest
-    free(lcss)
+    free(edr)
     return result
 
 
@@ -357,7 +351,7 @@ def distance_matrix_nogil(cur, double epsilon=0, double max_dist=inf, int max_le
                           int window=0, double max_step=0, double penalty=0, block=None,
                           bool is_parallel=False, **kwargs):
     """Compute a distance matrix between all sequences given in `cur`.
-    This method calls a pure c implementation of the lcss computation that
+    This method calls a pure c implementation of the edr computation that
     avoids the GIL.
     """
     # https://github.com/cython/cython/wiki/tutorials-NumpyPointerToC
@@ -415,7 +409,7 @@ def distance_matrix_nogil(cur, double epsilon=0, double max_dist=inf, int max_le
 def distance_matrix_nogil_p(cur, double epsilon=0, double max_dist=inf, int max_length_diff=0,
                             int window=0, double max_step=0, double penalty=0, block=None, **kwargs):
     """Compute a distance matrix between all sequences given in `cur`.
-    This method calls a pure c implementation of the lcss computation that
+    This method calls a pure c implementation of the edr computation that
     avoids the GIL and executes them in parallel.
     """
     return distance_matrix_nogil(cur, epsilon=epsilon, max_dist=max_dist, max_length_diff=max_length_diff,

@@ -1,9 +1,9 @@
 # -*- coding: UTF-8 -*-
 """
-dtaidistance.lcss
+dtaidistance.edr
 ~~~~~~~~~~~~~~~~
 
-Dynamic Time Warping (lcss)
+Dynamic Time Warping (edr)
 
 :author: Wannes Meert
 :copyright: Copyright 2017-2018 KU Leuven, DTAI Research Group.
@@ -20,10 +20,10 @@ from .util import SeriesContainer, dtaidistance_dir
 logger = logging.getLogger("be.kuleuven.dtai.distance")
 
 try:
-    from . import lcss_c
+    from . import edr_c
 except ImportError:
     # logger.info('C library not available')
-    lcss_c = None
+    edr_c = None
 
 try:
     from tqdm import tqdm
@@ -73,7 +73,7 @@ def distance(s1, s2, epsilon=None, window=None, max_dist=None,
         Useful for cyclical series.
     :param use_c: Use fast pure c compiled functions
 
-    Returns: lcss distance
+    Returns: edr distance
     """
     if use_c:
         return distance_fast(s1, s2,
@@ -109,9 +109,9 @@ def distance(s1, s2, epsilon=None, window=None, max_dist=None,
         psi = 0
     length = min(c + 1, abs(r - c) + 2 * (window - 1) + 1 + 1 + 1)
     # print("length (py) = {}".format(length))
-    lcss = np.full((2, length), np.inf)
+    edr = np.full((2, length), np.inf)
     for i in range(psi + 1):
-        lcss[0, i] = 0
+        edr[0, i] = 0
     last_under_max_dist = 0
     skip = 0
     i0 = 1
@@ -119,7 +119,7 @@ def distance(s1, s2, epsilon=None, window=None, max_dist=None,
     psi_shortest = np.inf
     for i in range(r):
         # print("i={}".format(i))
-        # print(lcss)
+        # print(edr)
         if last_under_max_dist == -1:
             prev_last_under_max_dist = np.inf
         else:
@@ -130,15 +130,14 @@ def distance(s1, s2, epsilon=None, window=None, max_dist=None,
         i0 = 1 - i0
         i1 = 1 - i1
         # my変更
-        # lcss[i1, :] = np.inf  #from
-        lcss[i1, 0], lcss[i1, 1:] = 0.0, np.inf  # to
+        edr[i1, :] = np.inf  # from
         ####
         j_start = max(0, i - max(0, r - c) - window + 1)
         j_end = min(c, i + max(0, c - r) + window)
-        if lcss.shape[1] == c + 1:
+        if edr.shape[1] == c + 1:
             skip = 0
         if psi != 0 and j_start == 0 and i < psi:
-            lcss[i1, 0] = 0
+            edr[i1, 0] = 0
         for j in range(j_start, j_end):
             # my change
             # d = (s1[i] - s2[j])**2 #from
@@ -151,42 +150,45 @@ def distance(s1, s2, epsilon=None, window=None, max_dist=None,
             assert j + 1 - skipp >= 0
             assert j - skip >= 0
             # my addition
-            cand_values = np.array(
-                [lcss[i0, j - skipp], lcss[i0, j + 1 - skipp] + penalty, lcss[i1, j - skip] + penalty])
+            if d <= epsilon:
+                cand_values = np.array(
+                    [edr[i0, j - skipp], edr[i0, j + 1 - skipp] + 1, edr[i1, j - skip] + 1])
+            else:
+                cand_values = np.array(
+                    [edr[i0, j - skipp] + 1, edr[i0, j + 1 - skipp] + 1, edr[i1, j - skip] + 1])
             ####
             # my change
-            if d <= epsilon:
-                lcss[i1, j + 1 - skip] = 1.0 + \
-                    np.nanmin(cand_values[cand_values != np.inf])
-            else:
-                lcss[i1, j + 1 - skip] = 0.0 + \
-                    np.nanmax(cand_values[cand_values != np.inf])
+            edr[i1, j + 1 -
+                skip] = np.nanmin(cand_values[cand_values != np.inf])
             ####
 
-            #print('({},{}), ({},{}), ({},{})'.format(i0, j - skipp, i0, j + 1 - skipp, i1, j - skip))
-            #print('{}, {}, {}'.format(lcss[i0, j - skipp], lcss[i0, j + 1 - skipp], lcss[i1, j - skip]))
-            #print('i={}, j={}, d={}, skip={}, skipp={}'.format(i,j,d,skip,skipp))
-            # print(lcss)
-            if lcss[i1, j + 1 - skip] <= max_dist:
+            # print('({},{}), ({},{}), ({},{})'.format(
+            #    i0, j - skipp, i0, j + 1 - skipp, i1, j - skip))
+            # print('{}, {}, {}'.format(
+            #    edr[i0, j - skipp], edr[i0, j + 1 - skipp], edr[i1, j - skip]))
+            # print('i={}, j={}, d={}, skip={}, skipp={}'.format(
+            #    i, j, d, skip, skipp))
+            # print(edr)
+            if edr[i1, j + 1 - skip] <= max_dist:
                 last_under_max_dist = j
             else:
-                # print('above max_dist', lcss[i1, j + 1 - skip], i1, j + 1 - skip)
-                lcss[i1, j + 1 - skip] = np.inf
+                # print('above max_dist', edr[i1, j + 1 - skip], i1, j + 1 - skip)
+                edr[i1, j + 1 - skip] = np.inf
                 if prev_last_under_max_dist + 1 - skipp < j + 1 - skip:
                     # print("break")
                     break
         if last_under_max_dist == -1:
             # print('early stop')
-            # print(lcss)
+            # print(edr)
             return np.inf
         if psi != 0 and j_end == len(s2) and len(s1) - 1 - i <= psi:
-            psi_shortest = min(psi_shortest, lcss[i1, length - 1])
+            psi_shortest = min(psi_shortest, edr[i1, length - 1])
     if psi == 0:
-        d = lcss[i1, min(c, c + window - 1) - skip]
-        # d = math.sqrt(lcss[i1, min(c, c + window - 1) - skip])
+        d = edr[i1, min(c, c + window - 1) - skip]
+        # d = math.sqrt(edr[i1, min(c, c + window - 1) - skip])
     else:
         ic = min(c, c + window - 1) - skip
-        vc = lcss[i1, ic - psi:ic + 1]
+        vc = edr[i1, ic - psi:ic + 1]
         d = min(np.min(vc), psi_shortest)
         d = math.sqrt(d)
     return d
@@ -195,7 +197,7 @@ def distance(s1, s2, epsilon=None, window=None, max_dist=None,
 def distance_fast(s1, s2, epsilon=None, window=None, max_dist=None,
                   max_step=None, max_length_diff=None, penalty=None, psi=None):
     """Fast C version of :meth:`distance`."""
-    if lcss_c is None:
+    if edr_c is None:
         _print_library_missing()
         return None
     if epsilon is None:
@@ -213,14 +215,14 @@ def distance_fast(s1, s2, epsilon=None, window=None, max_dist=None,
     if psi is None:
         psi = 0
 
-    d = lcss_c.distance_nogil(s1, s2,
-                              epsilon=epsilon,
-                              window=window,
-                              max_dist=max_dist,
-                              max_step=max_step,
-                              max_length_diff=max_length_diff,
-                              penalty=penalty,
-                              psi=psi)
+    d = edr_c.distance_nogil(s1, s2,
+                             epsilon=epsilon,
+                             window=window,
+                             max_dist=max_dist,
+                             max_step=max_step,
+                             max_length_diff=max_length_diff,
+                             penalty=penalty,
+                             psi=psi)
     return d
 
 
@@ -229,7 +231,7 @@ def _distance_with_params(t):
 
 
 def _distance_c_with_params(t):
-    return lcss_c.distance(t[0], t[1], **t[2])
+    return edr_c.distance(t[0], t[1], **t[2])
 
 
 def warping_paths(s1, s2, window=None, max_dist=None,
@@ -247,7 +249,7 @@ def warping_paths(s1, s2, window=None, max_dist=None,
     :param max_length_diff: see :meth:`distance`
     :param penalty: see :meth:`distance`
     :param psi: see :meth:`distance`
-    :returns: (lcss distance, lcss matrix)
+    :returns: (edr distance, edr matrix)
     """
     r, c = len(s1), len(s2)
     if max_length_diff is not None and abs(r - c) > max_length_diff:
@@ -268,11 +270,11 @@ def warping_paths(s1, s2, window=None, max_dist=None,
         penalty *= penalty
     if psi is None:
         psi = 0
-    lcss = np.full((r + 1, c + 1), np.inf)
-    # lcss[0, 0] = 0
+    edr = np.full((r + 1, c + 1), np.inf)
+    # edr[0, 0] = 0
     for i in range(psi + 1):
-        lcss[0, i] = 0
-        lcss[i, 0] = 0
+        edr[0, i] = 0
+        edr[i, 0] = 0
     last_under_max_dist = 0
     i0 = 1
     i1 = 0
@@ -288,10 +290,10 @@ def warping_paths(s1, s2, window=None, max_dist=None,
         # jmin = max(0, i - max(0, r - c) - window + 1)
         # jmax = min(c, i + max(0, c - r) + window)
         # print(i,jmin,jmax)
-        # x = lcss[i, jmin-skipp:jmax-skipp]
-        # y = lcss[i, jmin+1-skipp:jmax+1-skipp]
-        # print(x,y,lcss[i+1, jmin+1-skip:jmax+1-skip])
-        # lcss[i+1, jmin+1-skip:jmax+1-skip] = np.minimum(x,
+        # x = edr[i, jmin-skipp:jmax-skipp]
+        # y = edr[i, jmin+1-skipp:jmax+1-skipp]
+        # print(x,y,edr[i+1, jmin+1-skip:jmax+1-skip])
+        # edr[i+1, jmin+1-skip:jmax+1-skip] = np.minimum(x,
         #                                                y)
         for j in range(max(0, i - max(0, r - c) - window + 1), min(c, i + max(0, c - r) + window)):
             # print('j =', j, 'max=',min(c, c - r + i + window))
@@ -299,38 +301,38 @@ def warping_paths(s1, s2, window=None, max_dist=None,
             if max_step is not None and d > max_step:
                 continue
             # print(i, j + 1 - skip, j - skipp, j + 1 - skipp, j - skip)
-            lcss[i1, j + 1] = d + min(lcss[i0, j],
-                                      lcss[i0, j + 1] + penalty,
-                                      lcss[i1, j] + penalty)
-            # lcss[i + 1, j + 1 - skip] = d + min(lcss[i + 1, j + 1 - skip], lcss[i + 1, j - skip])
+            edr[i1, j + 1] = d + min(edr[i0, j],
+                                     edr[i0, j + 1] + penalty,
+                                     edr[i1, j] + penalty)
+            # edr[i + 1, j + 1 - skip] = d + min(edr[i + 1, j + 1 - skip], edr[i + 1, j - skip])
             if max_dist is not None:
-                if lcss[i1, j + 1] <= max_dist:
+                if edr[i1, j + 1] <= max_dist:
                     last_under_max_dist = j
                 else:
-                    lcss[i1, j + 1] = np.inf
+                    edr[i1, j + 1] = np.inf
                     if prev_last_under_max_dist < j + 1:
                         break
         if max_dist is not None and last_under_max_dist == -1:
             # print('early stop')
-            # print(lcss)
-            return np.inf, lcss
-    lcss = np.sqrt(lcss)
+            # print(edr)
+            return np.inf, edr
+    edr = np.sqrt(edr)
     if psi == 0:
-        d = lcss[i1, min(c, c + window - 1)]
+        d = edr[i1, min(c, c + window - 1)]
     else:
         ir = i1
         ic = min(c, c + window - 1)
-        vr = lcss[ir-psi:ir+1, ic]
-        vc = lcss[ir, ic-psi:ic+1]
+        vr = edr[ir-psi:ir+1, ic]
+        vc = edr[ir, ic-psi:ic+1]
         mir = np.argmin(vr)
         mic = np.argmin(vc)
         if vr[mir] < vc[mic]:
-            lcss[ir-psi+mir+1:ir+1, ic] = -1
+            edr[ir-psi+mir+1:ir+1, ic] = -1
             d = vr[mir]
         else:
-            lcss[ir, ic - psi + mic + 1:ic+1] = -1
+            edr[ir, ic - psi + mic + 1:ic+1] = -1
             d = vc[mic]
-    return d, lcss
+    return d, edr
 
 
 def distance_matrix_func(use_c=False, use_nogil=False, parallel=False, show_progress=False):
@@ -394,10 +396,10 @@ def distance_matrix(s, epsilon=None, max_dist=None, max_length_diff=None,
         dist_opts['block'] = block
         if parallel:
             logger.info("Use parallel computation")
-            dists = lcss_c.distance_matrix_nogil_p(s, **dist_opts)
+            dists = edr_c.distance_matrix_nogil_p(s, **dist_opts)
         else:
             logger.info("Use serial computation")
-            dists = lcss_c.distance_matrix_nogil(s, **dist_opts)
+            dists = edr_c.distance_matrix_nogil(s, **dist_opts)
     if use_c and not use_nogil:
         logger.info("Compute distances in Python compiled C")
         if parallel:
@@ -424,7 +426,7 @@ def distance_matrix(s, epsilon=None, max_dist=None, max_length_diff=None,
         else:
             logger.info("Use serial computation")
             dist_opts['block'] = block
-            dists = lcss_c.distance_matrix(s, **dist_opts)
+            dists = edr_c.distance_matrix(s, **dist_opts)
     if not use_c:
         logger.info("Compute distances in Python")
         if parallel:
@@ -473,7 +475,7 @@ def distance_matrix_fast(s, epsilon=None, max_dist=None, max_length_diff=None,
                          window=None, max_step=None, penalty=None, psi=None,
                          block=None, parallel=True, show_progress=False):
     """Fast C version of :meth:`distance_matrix`."""
-    if lcss_c is None:
+    if edr_c is None:
         _print_library_missing()
         return None
     return distance_matrix(s, epsilon=epsilon, max_dist=max_dist, max_length_diff=max_length_diff,
